@@ -3,6 +3,10 @@
 
 class Ractor
   module Server
-    VERSION = '0.1.0'
+    module Debugging
+      def debug(_kind)
+        puts yield if $DEBUG
+      end
+    end
   end
 end

@@ -1,10 +1,8 @@
 # frozen_string_literal: true
+# shareable_constant_value: literal
 
-require_relative "server/version"
+require 'require_relative_dir'
+require 'set'
 
-module Ractor
-  module Server
-    class Error < StandardError; end
-    # Your code goes here...
-  end
-end
+using RequireRelativeDir
+require_relative_dir first: %i[debugging error talk]

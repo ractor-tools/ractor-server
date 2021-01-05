@@ -3,6 +3,7 @@
 
 class Ractor
   module Server
-    VERSION = '0.1.0'
+    class Error < RuntimeError
+    end
   end
 end

@@ -1,10 +1,27 @@
-Style/StringLiterals:
-  Enabled: true
-  EnforcedStyle: double_quotes
+inherit_from:
+  - https://raw.githubusercontent.com/ractor-tools/rubocop-ractor-tools/master/.rubocop.yml
 
-Style/StringLiteralsInInterpolation:
-  Enabled: true
-  EnforcedStyle: double_quotes
+AllCops:
+  TargetRubyVersion: 3.0
 
-Layout/LineLength:
-  Max: 120
+# Move:
+
+Layout/EmptyLineAfterMagicComment:
+  Enabled: false # https://github.com/rubocop-hq/rubocop/issues/9327
+Style/RescueModifier:
+  Exclude:
+    - 'spec/**/*.rb'
+
+Style/MutableConstant:
+  Enabled: false # https://github.com/rubocop-hq/rubocop/issues/9328
+
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: consistent_comma
+
+Naming/MethodParameterName:
+  AllowedNames:
+    - rq
+# Local:
+
+Metrics/MethodLength:
+  Max: 16
