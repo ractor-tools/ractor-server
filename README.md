@@ -293,6 +293,13 @@ class SharedObject
 end
 ```
 
+## To do
+
+* Exception rescuing and propagation
+* API to pass block via makeshareable
+* Monitoring
+* Promise-style communication
+
 ## Installation
 
 Add this line to your application's Gemfile:
