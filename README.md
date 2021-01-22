@@ -15,13 +15,13 @@ class RactorHash < Hash
   include Ractor::Server
 end
 
-H = RactorHash.start
+H = RactorHash.start # => starts Server, returns instance of a Client
 
-Ractor.new { H[:example] = 42 }.take
+Ractor.new { H[:example] = 42 }.take # => 42
 puts Ractor.new { H[:example] }.take # => 42
 ```
 
-Calls with blocks are atomic yet allow reentrant calls:
+Calls are atomic but also allow reentrant calls from blocks:
 
 ```ruby
 ractors = 3.times.map do |i|
