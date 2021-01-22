@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors       = ['Marc-Andre Lafortune']
   spec.email         = ['github@marc-andre.ca']
 
-  spec.summary       = 'Base class for Ractor-based servers.'
-  spec.description   = 'Base class for Ractor-based servers.'
+  spec.summary       = 'Ractor based communication inspired by GenServer.'
+  spec.description   = 'Ractor based communication inspired by GenServer.'
   spec.homepage      = 'https://github.com/ractor-tools/ractor-server'
   spec.license       = 'MIT'
   spec.required_ruby_version = Gem::Requirement.new('>= 2.3.0')
