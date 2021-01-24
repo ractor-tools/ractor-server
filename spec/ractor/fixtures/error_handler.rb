@@ -10,6 +10,8 @@ class ErrorHandler
   rescue Ractor::RemoteError => e
     raise e unless e.cause.is_a?(NoMethodError)
 
+    :wrapped_no_method_error
+  rescue NoMethodError
     :no_method_error
   end
 
@@ -18,7 +20,7 @@ class ErrorHandler
   end
 
   def with_error
-    foo
+    42.foo
   end
 
   def stuck?

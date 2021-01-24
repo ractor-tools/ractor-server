@@ -5,6 +5,8 @@ using Ractor::Server::Talk
 
 class Ractor
   module Server
+    WRAP_IN_REMOTE_ERROR = false # unsure what's best
+
     class Request
       include Debugging
       attr_reader :response_to, :initiating_ractor, :sync, :info
@@ -136,6 +138,8 @@ class Ractor
       end
 
       private def raise_exception(exc)
+        raise exc unless WRAP_IN_REMOTE_ERROR
+
         if exc.exception.is_a?(Ractor::RemoteError)
           debug(:exception) { 'Received RemoteError, raising original cause' }
           raise exc.exception.cause

@@ -38,16 +38,12 @@ puts H # => {:example => 42, :foo => 0, :bar => 0}
 
 The first ractor to call `fetch_values` will have its block called twice; only the `fetch_values` has completed will the other Ractors have their calls to `fetch_values` run. The block is reentrant as it calls `[]=`; that call will not wait.
 
-Exceptions are propagated between Client and Server. If they were raised on the remote side, they will be `Ractor::RemoveError`, otherwise they will be the original exception.
+Exceptions are propagated between Client and Server.
 
 ```ruby
 begin
   H.fetch_values(:z) { raise ArgumentError }
-rescue Ractor::RemoteError
-  # raised remote-side
-  :there
 rescue ArgumentError
-  # raised on this side
   :here
 end # => :here
 ```
@@ -126,8 +122,8 @@ Calling `send_exception` wraps the original exception in a `Ractor::Remote`:
 ```ruby
 ractor = Ractor.new do
   request, data = receive_request
-rescue Ractor::RemoteError => e
-  puts e.cause # => 'example' (ArgumentError)
+rescue ArgumentError => e
+  puts e # => 'example' (ArgumentError)
 end
 
 ractor.send_exception(ArgumentError.new('example'))
