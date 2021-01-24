@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'fixtures/shared_object'
+require_relative '../fixtures/shared_object'
 
 RSpec.describe SharedObject do
   subject(:obj) { described_class.start }
