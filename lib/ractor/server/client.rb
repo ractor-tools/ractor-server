@@ -165,16 +165,23 @@ class Ractor
         loop do
           response, result = rq.receive
           case response.sync
-          in :converse
-            block_result = with_requests_nested(response) { yield(result) }
-            Ractor.make_shareable(block_result) if share_inputs?(method)
-            response.conclude block_result
-          in :conclude
-            return result
+          in :converse then handle_yield(method, response) { yield result }
+          in :conclude then return result
           end
         end
       ensure
         debug(:await) { "Finished waiting for #{rq}" }
+      end
+
+      private def handle_yield(method, response)
+        block_result = with_requests_nested(response) do
+          yield
+        rescue Exception => e
+          response.send_exception(e)
+          return
+        end
+        Ractor.make_shareable(block_result) if share_inputs?(method)
+        response.conclude block_result
       end
 
       private def with_requests_nested(context)

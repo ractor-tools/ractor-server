@@ -25,3 +25,8 @@ Naming/MethodParameterName:
 
 Metrics/MethodLength:
   Max: 16
+
+Lint/RescueException:
+  Enabled: false
+Security/MarshalLoad:
+  Enabled: false

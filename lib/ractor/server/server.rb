@@ -25,7 +25,9 @@ class Ractor
       else
         public_send(method_name, *args, **options, &block)
       end => result
-
+    rescue Exception => e
+      rq.send_exception(e) unless rq.tell?
+    else
       rq.conclude(result) unless rq.tell?
     end
 

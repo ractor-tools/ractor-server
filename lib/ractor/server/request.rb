@@ -50,9 +50,25 @@ class Ractor
         RUBY
       end
 
+      class WrappedException
+        # Use Marshal to circumvent https://bugs.ruby-lang.org/issues/17577
+        def initialize(exception)
+          @exception = Marshal.dump(exception)
+        end
+
+        def exception
+          Marshal.load(@exception)
+        end
+      end
+      private_constant :WrappedException
+
+      def send_exception(exception)
+        send(WrappedException.new(exception), sync: sync && :conclude)
+      end
+
       def receive
         enforce_sync_when_receiving!
-        Request.receive_if(&self)
+        unwrap(Request.receive_if(&self))
       end
 
       def inspect
@@ -109,6 +125,27 @@ class Ractor
               send(r, *args, **options, sync: :#{sync})  #   send(r, *args, **options, sync: :tell)
             end                                          # end
           RUBY
+        end
+      end
+
+      private def unwrap(message)
+        _rq, arg = message
+        raise_exception(arg) if arg.is_a?(WrappedException)
+
+        message
+      end
+
+      private def raise_exception(exc)
+        if exc.exception.is_a?(Ractor::RemoteError)
+          debug(:exception) { 'Received RemoteError, raising original cause' }
+          raise exc.exception.cause
+        else
+          debug(:exception) { 'Received exception, raising RemoveError' }
+          begin
+            raise exc.exception
+          rescue Exception
+            raise Ractor::RemoteError # => sets `cause` to exc.exception
+          end
         end
       end
 

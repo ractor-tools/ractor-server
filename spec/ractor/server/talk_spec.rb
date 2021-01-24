@@ -56,4 +56,20 @@ RSpec.describe Ractor::Server::Talk do
       expect(test(:converse, nil)).to eq %i[error error fallback error]
     end
   end
+
+  context 'responding with an exception' do
+    it 'raises in #receive' do
+      ractor = Ractor.new do
+        request, _data = receive_request
+        request.send_exception(IndexError.new('foo'))
+      end
+      request = ractor.send_request(:example)
+      exc = begin
+        request.receive
+      rescue Ractor::RemoteError => e
+        e.cause
+      end
+      expect(exc).to be_a(IndexError)
+    end
+  end
 end

@@ -38,6 +38,20 @@ puts H # => {:example => 42, :foo => 0, :bar => 0}
 
 The first ractor to call `fetch_values` will have its block called twice; only the `fetch_values` has completed will the other Ractors have their calls to `fetch_values` run. The block is reentrant as it calls `[]=`; that call will not wait.
 
+Exceptions are propagated between Client and Server. If they were raised on the remote side, they will be `Ractor::RemoveError`, otherwise they will be the original exception.
+
+```ruby
+begin
+  H.fetch_values(:z) { raise ArgumentError }
+rescue Ractor::RemoteError
+  # raised remote-side
+  :there
+rescue ArgumentError
+  # raised on this side
+  :here
+end # => :here
+```
+
 The implementation relies on three layers of functionality.
 
 ### Low-level API: `Request`
@@ -102,6 +116,25 @@ response_request.send(:inner)
 The method `receive_request` will only receive a `Request` that was sent with `send_request` and thus is not a response to another `Request`.
 
 The method `Request#receive` will only receive a `Request` that is a direct response to the receiver.
+
+#### Exceptions
+
+Instead of responsing with data, it is possible to respond by raising (on the remote side) an error with `send_exception`.
+
+Calling `send_exception` wraps the original exception in a `Ractor::Remote`:
+
+```ruby
+ractor = Ractor.new do
+  request, data = receive_request
+rescue Ractor::RemoteError => e
+  puts e.cause # => 'example' (ArgumentError)
+end
+
+ractor.send_exception(ArgumentError.new('example'))
+ractor.take
+```
+
+Calling `send_exception` again on the wrapped `Ractor::Remote` will unwrap it. This way, if an exception travels from the client to the server and back to the client, this voyage will be transparent to the client.
 
 #### Implementation
 
