@@ -7,6 +7,7 @@ class ErrorHandler
 
   def filter_error
     yield
+    yield
   rescue Ractor::RemoteError => e
     raise e unless e.cause.is_a?(NoMethodError)
 
@@ -16,6 +17,7 @@ class ErrorHandler
   end
 
   def direct
+    yield
     yield
   end
 

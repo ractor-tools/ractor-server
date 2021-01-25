@@ -324,7 +324,7 @@ end
 
 ## To do
 
-* Exception rescuing and propagation
+* Escape (return / throw / ...) handling
 * API to pass block via makeshareable
 * Monitoring
 * Promise-style communication

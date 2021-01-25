@@ -66,8 +66,8 @@ RSpec.describe Ractor::Server::Talk do
       request = ractor.send_request(:example)
       exc = begin
         request.receive
-      rescue Ractor::RemoteError => e
-        e.cause
+      rescue Exception => e
+        e
       end
       expect(exc).to be_a(IndexError)
     end
