@@ -106,7 +106,7 @@ RSpec.describe SharedObject do
           Ractor.main << :update_r1
           @value += [4]
         end
-        Ractor.main << :end_r1
+        Ractor.main << :end
       end
       r2 = Ractor.new(obj, r1) do |obj, r1|
         result = obj.server_exec(r1) do |r1|
@@ -116,12 +116,12 @@ RSpec.describe SharedObject do
           Ractor.main << :update_r2
           @value += [3]
         end
-        Ractor.main << :end_r2
+        Ractor.main << :end
         result
       end
       acks = 4.times.map { Ractor.receive }
 
-      expect(acks).to eq %i[end_r2 end_r1 update_r2 update_r1]
+      expect(acks).to eq %i[end end update_r2 update_r1]
       expect(obj.value).to eq [1, 2, 3, 4]
       expect(obj.value).not_to be_shareable
       expect(r2.take).to be_a(Ractor::Server::Request)
