@@ -38,14 +38,32 @@ puts H # => {:example => 42, :foo => 0, :bar => 0}
 
 The first ractor to call `fetch_values` will have its block called twice; only the `fetch_values` has completed will the other Ractors have their calls to `fetch_values` run. The block is reentrant as it calls `[]=`; that call will not wait.
 
-Exceptions are propagated between Client and Server.
+Moreover, exceptions are propagated transparently between Client and Server.
 
 ```ruby
-begin
-  H.fetch_values(:z) { raise ArgumentError }
-rescue ArgumentError
-  :here
-end # => :here
+H.fetch_values(:z) { raise ArgumentError } # => ArgumentError
+  # (raised by Client, propagated to the Server, then back to the Client)
+
+H.fetch_values(:z) # => KeyError
+  # (raised by Hash#fetch_values) on the Server, propagated to the Client)
+```
+
+Block can also `return`, `break` or `throw` on the client-side and the server will be aware of that
+so that any `ensure` blocks are called and server doesn't hang expecting a return value.
+
+```ruby
+class RactorHash
+  def fetch_values(*)
+    super
+  ensure
+    puts 'here'
+  end
+end
+
+def foo
+  H.fetch_values(:z) { return 42 }
+end
+foo # => 42, prints 'here'
 ```
 
 The implementation relies on three layers of functionality.
@@ -149,7 +167,8 @@ One may specify the expected syncing for a `Request`:
 * `:tell`: receiver may not reply ("do this, I'm assuming it will get done")
 * `:ask`: receiver must reply exactly once with sync type `:conclude`  ("do this, let me know when done, and don't me ask questions")
 * `:conclude`: as with `:tell`, receiver may not reply. Must be in response of `ask` or `converse`
-* `:converse`: receiver may reply has many times as desired (with sync type `:tell`, `:ask`, or `:converse`) and must then reply exactly once with sync type `:conclude`.  ("do this, ask questions if need be, and let me know when done")
+* `:converse`: receiver may reply has many times as desired (with sync type `:tell`, `:ask`, or `:converse`) and must then reply exactly once with sync type `:conclude`.  ("do this, ask questions if need be, and let me know when done"). Exception: if the receiver replies with a `converse`, both `converse` requests may be interrupted with a response of sync `interrupt`; the receiver may no longer reply, not even for the final `:conclude`.
+* `:interrupt`: acts as a kind of "double conclude". Not only should receiver not reply, but outer `conclude`.
 
 The API uses `send_request`/`send` with a `sync:` named argument:
 
@@ -281,7 +300,7 @@ end
 
 It may be necessary to customize the `Client` interface.
 
-For example in the `SharedObject` example above, it may be more efficient if the shared object is always shareable. This can be done by customizing the client:
+For example in the `SharedObject` example above, it may be more efficient if the held object is always shareable. This can be done by customizing the client:
 
 ```ruby
 class SharedObject
@@ -324,7 +343,6 @@ end
 
 ## To do
 
-* Escape (return / throw / ...) handling
 * API to pass block via makeshareable
 * Monitoring
 * Promise-style communication

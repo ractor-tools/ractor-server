@@ -55,6 +55,38 @@ RSpec.describe Ractor::Server::Talk do
       expect(test(:converse, :ask)).to eq %i[ok ok reply reply]
       expect(test(:converse, nil)).to eq %i[error error fallback error]
     end
+
+    it '`sync: interrupt` enforces responding to a 2-level conversation' do
+      expect(test(:converse, :interrupt)).to eq %i[error error fallback error]
+      %i[double_conclude interrupt].map do |method|
+        Ractor.new(method) do |method|
+          result = []
+          rq = send_request :test, sync: :converse
+          result << :ok1 if receive_request == [rq, :test]
+          rq2 = rq.send(:further_down, sync: :converse)
+          result << :ok2 if rq.receive == [rq2, :further_down]
+          if method == :double_conclude
+            rq3 = rq2.send(:stop, sync: :conclude)
+            result << :ok3 if rq2.receive == [rq3, :stop]
+            rq4 = rq.send(:stop_outer, sync: :conclude)
+            result << :ok4 if rq.receive == [rq4, :stop_outer]
+          else
+            rq3 = rq2.send(:stop, sync: :interrupt)
+            result << :ok5 if rq2.receive == [rq3, :stop]
+            result << (rq.send(:stop_outer, sync: :conclude) && :sent rescue :err)
+            result << (rq.receive && :received rescue :err)
+          end
+          result << (rq3.send(:bad, sync: :conclude) && :sent rescue :err)
+          result << (rq2.send(:bad, sync: :conclude) && :sent rescue :err)
+          result << (rq.send(:bad, sync: :tell) && :sent rescue :err)
+          result
+        end.take
+      end => results
+      expect(results).to eq [
+        %i[ok1 ok2 ok3 ok4 err err sent],
+        %i[ok1 ok2 ok5 err err err err sent],
+      ]
+    end
   end
 
   context 'responding with an exception' do

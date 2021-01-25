@@ -40,7 +40,7 @@ class Ractor
         Request.send(initiating_ractor, *args, **options, response_to: self)
       end
 
-      %i[tell ask converse conclude].each do |sync|
+      %i[tell ask converse conclude interrupt].each do |sync|
         class_eval <<~RUBY, __FILE__, __LINE__ + 1
           def #{sync}(*args, **options)                # def tell(*args, **options)
             send(*args, **options, sync: :#{sync})     #   send(*args, **options, sync: :tell)
@@ -121,7 +121,7 @@ class Ractor
           request
         end
 
-        %i[tell ask converse conclude].each do |sync|
+        %i[tell ask converse conclude interrupt].each do |sync|
           class_eval <<~RUBY, __FILE__, __LINE__ + 1
             def #{sync}(r, *args, **options)             # def tell(r, *args, **options)
               send(r, *args, **options, sync: :#{sync})  #   send(r, *args, **options, sync: :tell)
@@ -157,11 +157,12 @@ class Ractor
       def enforce_sync_when_sending!
         # Only dynamic checks are done here; static validity checked in constructor
         case sync
-        when :conclude
+        when :conclude, :interrupt
           registry = Request.pending_send_conclusion
           raise Talk::Error, "Request #{response_to} already answered" unless registry[response_to]
 
           registry[response_to] = false
+          Request.pending_receive_conclusion[response_to.response_to] = false if sync == :interrupt
         when :ask, :converse
           Request.pending_receive_conclusion[self] = true
         end
@@ -171,8 +172,9 @@ class Ractor
       def sync_after_receiving
         # Only dynamic checks are done here; static validity checked in constructor
         case sync
-        when :conclude
+        when :conclude, :interrupt
           Request.pending_receive_conclusion[response_to] = false
+          Request.pending_send_conclusion[response_to.response_to] = false if sync == :interrupt
         when :ask, :converse
           Request.pending_send_conclusion[self] = true
         end
@@ -181,7 +183,7 @@ class Ractor
       # Receiver is request to receive a reply from
       private def enforce_sync_when_receiving!
         case sync
-        when :tell, :conclude
+        when :tell, :conclude, :interrupt
           raise Talk::Error, "Can not receive from a Request for a `#{sync}` sync: #{self}"
         when :ask, :converse
           return :ok if Request.pending_receive_conclusion[self]
@@ -194,7 +196,7 @@ class Ractor
         ractor.name || "##{ractor.to_s.match(/#(\d+) /)[1]}"
       end
 
-      private def enforce_valid_sync!
+      private def enforce_valid_sync! # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         case [response_to&.sync, sync]
         in [nil, nil]
           :ok_unsynchronized
@@ -202,10 +204,15 @@ class Ractor
           :ok_talk
         in [:ask | :converse, :conclude]
           :ok_concluding
-        in [:tell | :conclude => from, _]
+        in [:ask | :converse, :interrupt]
+          raise Talk::Error, 'Can only interrupt a 2-level conversation' unless response_to.response_to&.converse?
+
+          :ok_interrupting
+        in [:tell | :conclude | :interrupt => from, _]
           raise Talk::Error, "Can not respond to a Request with `#{from.inspect}` sync"
         in [:ask, _]
-          raise Talk::Error, "Request with `ask` sync must be responded with a `conclude` sync, got #{sync.inspect}"
+          raise Talk::Error, 'Request with `ask` sync must be responded with a `conclude`' \
+            "or `interrupt` sync, got #{sync.inspect}"
         in [_, nil]
           raise Talk::Error, "Specify sync to respond to a Request with #{sync.inspect}"
         else

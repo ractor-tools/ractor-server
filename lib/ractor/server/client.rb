@@ -174,14 +174,21 @@ class Ractor
       end
 
       private def handle_yield(method, response)
-        block_result = with_requests_nested(response) do
-          yield
-        rescue Exception => e
-          response.send_exception(e)
-          return
+        begin
+          status, result = with_requests_nested(response) do
+            [:ok, yield]
+          rescue Exception => e
+            [:exception, e]
+          end
+        ensure
+          response.interrupt unless status # throw/return/...
         end
-        Ractor.make_shareable(block_result) if share_inputs?(method)
-        response.conclude block_result
+        if status == :exception
+          response.send_exception(result)
+        else
+          Ractor.make_shareable(result) if share_inputs?(method)
+          response.conclude result
+        end
       end
 
       private def with_requests_nested(context)

@@ -17,28 +17,35 @@ class Ractor
       :done
     end
 
+    INTERRUPT = Object.new.freeze
+    private_constant :INTERRUPT
+
     private def process(rq, method_name, args, options, block = nil)
-      if rq.converse?
-        public_send(method_name, *args, **options) do |yield_arg|
-          yield_client(rq, yield_arg)
-        end
+      catch(INTERRUPT) do
+        if rq.converse?
+          public_send(method_name, *args, **options) do |yield_arg|
+            yield_client(rq, yield_arg)
+          end
+        else
+          public_send(method_name, *args, **options, &block)
+        end => result
+      rescue Exception => e
+        rq.send_exception(e) unless rq.tell?
       else
-        public_send(method_name, *args, **options, &block)
-      end => result
-    rescue Exception => e
-      rq.send_exception(e) unless rq.tell?
-    else
-      rq.conclude(result) unless rq.tell?
+        rq.conclude(result) unless rq.tell?
+      end
     end
 
     private def yield_client(rq, arg)
       yield_request = rq.converse(arg)
       loop do
         rq, *data = yield_request.receive
-        return data.first if rq.conclude?
-
-        # Reentrant request
-        process(rq, *data)
+        case rq.sync
+        when :conclude then return data.first
+        when :interrupt then throw INTERRUPT
+        else # Reentrant request
+          process(rq, *data)
+        end
       end
     end
 
